@@ -70,33 +70,76 @@ model.fit(X_train, y_train)
 X_test_uk = X_test[X_test['is_UK'] == 1]
 y_test_uk = y_test[X_test['is_UK'] == 1]
 uk_predictions = model.predict(X_test_uk)
-print(classification_report(y_test_uk, uk_predictions))
+
+# Hourly price forecast backtest with profit threshold
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Train hourly price regressor on all pre-2020 data
+df_uk = df_all[['utc_timestamp', 'GB_GBN_wind_generation_actual', 'GB_GBN_solar_generation_actual', 'GB_GBN_price_day_ahead', 'GB_GBN_load_actual_entsoe_transparency']].copy()
+df_uk.rename(columns={
+    'utc_timestamp': 'timestamp',
+    'GB_GBN_wind_generation_actual': 'wind_generation',
+    'GB_GBN_solar_generation_actual': 'solar_generation',
+    'GB_GBN_price_day_ahead': 'price',
+    'GB_GBN_load_actual_entsoe_transparency': 'load'
+}, inplace=True)
+df_uk['timestamp'] = pd.to_datetime(df_uk['timestamp'])
+df_uk.dropna(inplace=True)
+df_uk['hour'] = df_uk['timestamp'].dt.hour
+df_uk['dayofweek'] = df_uk['timestamp'].dt.dayofweek
+features_cols_hourly = [
+    'wind_generation',
+    'solar_generation',
+    'load',
+    'hour',
+    'dayofweek'
+]
+train_df_hourly = df_uk[df_uk['timestamp'].dt.year < 2020]
+test_df_hourly = df_uk[df_uk['timestamp'].dt.year == 2020]
+X_train_hourly = train_df_hourly[features_cols_hourly]
+y_train_hourly = train_df_hourly['price']
+X_test_hourly = test_df_hourly[features_cols_hourly]
+y_test_hourly = test_df_hourly['price']
+regressor = lgb.LGBMRegressor()
+regressor.fit(X_train_hourly, y_train_hourly)
+test_df_hourly = test_df_hourly.copy()
+test_df_hourly['predicted_price'] = regressor.predict(X_test_hourly)
+test_df_hourly['date'] = test_df_hourly['timestamp'].dt.date
+
+# Use classifier predictions for 2020
 backtest_df = pd.DataFrame({
     'date': X_test_uk.index,
     'actual_volatility': y_test_uk.values,
     'prediction': uk_predictions
 })
-uk_daily_for_range = uk_daily.copy().reset_index()
-uk_daily_for_range['date'] = pd.to_datetime(uk_daily_for_range['date']).dt.date
-if 'price_range' not in uk_daily_for_range.columns:
-    hourly_uk = df_all[['utc_timestamp', 'GB_GBN_price_day_ahead']].copy()
-    hourly_uk['timestamp'] = pd.to_datetime(hourly_uk['utc_timestamp'])
-    hourly_uk['date'] = hourly_uk['timestamp'].dt.date
-    price_range_df = hourly_uk.groupby('date')['GB_GBN_price_day_ahead'].agg(['max', 'min'])
-    price_range_df['price_range'] = price_range_df['max'] - price_range_df['min']
-    price_range_df = price_range_df[['price_range']]
-    uk_daily_for_range = uk_daily_for_range.merge(price_range_df, left_on='date', right_index=True, how='left')
-backtest_df = backtest_df.merge(uk_daily_for_range[['date', 'price_range']], on='date', how='left')
-backtest_df['pnl'] = backtest_df.apply(lambda row: row['price_range'] if row['prediction'] == 1 else 0, axis=1)
-backtest_df['cumulative_pnl'] = backtest_df['pnl'].cumsum()
-import matplotlib.pyplot as plt
+profit_threshold = 20
+results = []
+for date, group in test_df_hourly.groupby('date'):
+    pred_row = backtest_df[backtest_df['date'] == date]
+    if pred_row.empty or pred_row['prediction'].values[0] == 0:
+        results.append({'date': date, 'pnl': 0})
+        continue
+    pred_prices = group['predicted_price'].values
+    actual_prices = group['price'].values
+    buy_hour = np.argmin(pred_prices)
+    sell_hour = np.argmax(pred_prices)
+    predicted_spread = pred_prices[sell_hour] - pred_prices[buy_hour]
+    if predicted_spread > profit_threshold:
+        pnl = actual_prices[sell_hour] - actual_prices[buy_hour]
+    else:
+        pnl = 0
+    results.append({'date': date, 'pnl': pnl})
+results_df = pd.DataFrame(results)
+results_df['cumulative_pnl'] = results_df['pnl'].cumsum()
+results_df.to_csv('backtest_hourly_strategy.csv', index=False)
 plt.figure(figsize=(10,6))
-plt.plot(backtest_df['date'], backtest_df['cumulative_pnl'], label='Equity Curve')
+plt.plot(results_df['date'], results_df['cumulative_pnl'], label='Equity Curve (Hourly Strategy)')
 plt.xlabel('Date')
 plt.ylabel('Cumulative PnL')
-plt.title('Backtest: Market Regime Strategy Equity Curve (UK)')
+plt.title('Backtest: Hourly Forecast Strategy Equity Curve (UK)')
 plt.legend()
 plt.xticks(rotation=45)
 plt.tight_layout()
-plt.savefig('equity_curve_uk.png')
-print('Equity curve saved as equity_curve_uk.png')
+plt.savefig('equity_curve_hourly_uk.png')
+print('Equity curve saved as equity_curve_hourly_uk.png')
