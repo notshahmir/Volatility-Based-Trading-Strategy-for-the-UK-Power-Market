@@ -2,7 +2,7 @@
 
 ## 1. Project Objective
 
-This project designs and backtests a profitable trading strategy for the UK wholesale electricity market. It is a direct continuation of the analysis performed in the [UK Renewable Generation & Power Price Analysis](https://github.com/your-username/your-previous-repo-name) project.
+This project designs and backtests a profitable trading strategy for the UK wholesale electricity market. It is a direct continuation of the analysis performed in the [UK Renewable Generation & Power Price Analysis](github.com/notshahmir/energy_trading_analysis) project.
 
 The previous analysis uncovered that the UK power market operates in two distinct regimes:
 * A **Calm Regime** on days with high renewable energy generation, characterized by low and stable prices.
@@ -45,7 +45,7 @@ A historical simulation, or backtest, was created to assess the profitability of
 
 ## 4. Results and Key Findings
 
-The backtest demonstrates that the Market Regime Strategy is both highly and consistently profitable over the 10-month test period.
+The backtest demonstrates that the Market Regime Strategy is both highly and consistently profitable over the 10 month test period.
 
 The **equity curve** below visualises the cumulative PnL of the strategy.
 
@@ -54,7 +54,7 @@ The **equity curve** below visualises the cumulative PnL of the strategy.
 The key findings from this result are:
 * **Consistent Profitability**: The clear upward trend, reaching a final cumulative PnL of nearly **£2,400**, shows the strategy's fundamental idea is highly effective.
 * **Effective Filtering**: The flat periods in the curve correspond to calm market conditions where the model correctly instructed the strategy to stay out of the market, preserving capital.
-* **Robustness**: The strategy shows remarkable resilience, with no significant "drawdowns" (periods of losing money), confirming the value of only trading in pre-identified volatile conditions.
+* **Robustness**: The strategy shows remarkable resilience, with no significant "drawdowns" (periods of losing money), confirming the value of only trading in pre identified volatile conditions.
 
 ***
 
@@ -65,4 +65,4 @@ This project successfully transitioned from an initial data analysis into a prof
 Potential next steps to enhance this project include:
 1.  **Refining the Trading Signal**: Instead of an idealised "perfect day" trade, develop an hourly price prediction model that generates more realistic entry and exit signals *within* the volatile days.
 2.  **Expanding the Feature Set**: Incorporate additional fundamental drivers like natural gas prices, carbon prices (EUAs), and temperature forecasts to improve the accuracy of the regime classifier.
-3.  **Implementing Risk Management**: Add rules for dynamic position sizing based on the model's prediction confidence or implement stop-loss mechanisms to create a more production-ready system.
+3.  **Implementing Risk Management**: Add rules for dynamic position sizing based on the model's prediction confidence or implement stop loss mechanisms to create a more production ready system.
